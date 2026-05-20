@@ -57,7 +57,7 @@ export default async function StockPage() {
                   <input name="minQuantity" className={inputClass} inputMode="decimal" placeholder="0" />
                 </Field>
               </div>
-              <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
+              <label className="text-soft flex items-center gap-2 text-sm font-medium">
                 <input name="isSellable" type="checkbox" defaultChecked className="size-4 accent-emerald-700" />
                 Pode ser vendido na OS
               </label>
@@ -100,7 +100,7 @@ export default async function StockPage() {
             <h3 className="mb-4 text-lg font-bold">Produtos</h3>
             <div className="overflow-x-auto">
               <table className="text-left text-sm">
-                <thead className="border-b border-stone-200 text-stone-500">
+                <thead className="table-head border-b">
                   <tr>
                     <th className="py-3">Produto</th>
                     <th>Categoria</th>
@@ -113,10 +113,10 @@ export default async function StockPage() {
                   {products.map((product) => {
                     const low = Number(product.quantity) <= Number(product.minQuantity);
                     return (
-                      <tr key={product.id} className="border-b border-stone-100">
+                      <tr key={product.id} className="table-row border-b">
                         <td className="py-3 font-semibold">{product.name}</td>
                         <td>{product.category?.name || "-"}</td>
-                        <td className={low ? "font-bold text-amber-700" : ""}>{formatDecimal(product.quantity)} {product.unit}</td>
+                        <td className={low ? "text-warning font-bold" : ""}>{formatDecimal(product.quantity)} {product.unit}</td>
                         <td>{formatDecimal(product.minQuantity)} {product.unit}</td>
                         <td>{formatCurrency(product.salePriceCents)}</td>
                       </tr>
@@ -131,10 +131,10 @@ export default async function StockPage() {
             <h3 className="mb-4 text-lg font-bold">Ultimas movimentacoes</h3>
             <div className="space-y-3">
               {movements.map((movement) => (
-                <div key={movement.id} className="flex items-center justify-between rounded-md border border-stone-200 p-3 text-sm">
+                <div key={movement.id} className="card-surface flex items-center justify-between rounded-md border p-3 text-sm">
                   <div>
                     <p className="font-semibold">{movement.product.name}</p>
-                    <p className="text-stone-600">{movement.reason || "Sem observacao"}</p>
+                    <p className="text-muted">{movement.reason || "Sem observacao"}</p>
                   </div>
                   <span className="font-bold">{movement.type} {formatDecimal(movement.quantity)}</span>
                 </div>

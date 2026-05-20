@@ -28,7 +28,7 @@ export default async function OrdersPage() {
               </Field>
             </div>
 
-            <div className="rounded-lg border border-stone-200 bg-stone-50 p-4">
+            <div className="muted-panel rounded-lg border p-4">
               <h4 className="mb-3 font-semibold">Self-service por peso</h4>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Peso em kg">
@@ -40,7 +40,7 @@ export default async function OrdersPage() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-stone-200 bg-stone-50 p-4">
+            <div className="muted-panel rounded-lg border p-4">
               <h4 className="mb-3 font-semibold">Item do estoque</h4>
               <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
                 <Field label="Produto">
@@ -59,7 +59,7 @@ export default async function OrdersPage() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-stone-200 bg-stone-50 p-4">
+            <div className="muted-panel rounded-lg border p-4">
               <h4 className="mb-3 font-semibold">Item manual</h4>
               <div className="grid gap-3 sm:grid-cols-[1fr_100px_130px]">
                 <Field label="Descricao">
@@ -93,20 +93,20 @@ export default async function OrdersPage() {
           <h3 className="mb-4 text-lg font-bold">Lista de ordens</h3>
           <div className="space-y-4">
             {orders.map((order) => (
-              <article key={order.id} className="rounded-lg border border-stone-200 p-4">
+              <article key={order.id} className="card-surface rounded-lg border p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h4 className="text-lg font-bold">OS #{order.number}</h4>
-                    <p className="text-sm text-stone-600">{order.customerName || order.tableLabel || "Balcao"}</p>
+                    <p className="text-muted text-sm">{order.customerName || order.tableLabel || "Balcao"}</p>
                   </div>
                   <div className="text-right">
-                    <span className="rounded-md bg-stone-100 px-2 py-1 text-xs font-semibold">
+                    <span className="status-chip rounded-md px-2 py-1 text-xs font-semibold">
                       {order.status === "OPEN" ? "Aberta" : order.status === "CLOSED" ? "Finalizada" : "Cancelada"}
                     </span>
-                    <p className="mt-2 text-xl font-bold text-emerald-800">{formatCurrency(order.totalCents)}</p>
+                    <p className="text-accent mt-2 text-xl font-bold">{formatCurrency(order.totalCents)}</p>
                   </div>
                 </div>
-                <div className="mt-3 grid gap-2 text-sm text-stone-700">
+                <div className="text-soft mt-3 grid gap-2 text-sm">
                   {order.weightLines.map((line) => (
                     <p key={line.id}>
                       Buffet: {formatDecimal(line.weightKg)} kg x {formatCurrency(line.pricePerKgCents)} = {formatCurrency(line.totalCents)}
@@ -129,7 +129,7 @@ export default async function OrdersPage() {
                     </form>
                     <form action={cancelServiceOrder}>
                       <input type="hidden" name="id" value={order.id} />
-                      <button className="inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 px-3 text-sm font-semibold hover:bg-stone-50">
+                      <button className="nav-link inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-semibold">
                         <X size={16} /> Cancelar
                       </button>
                     </form>
