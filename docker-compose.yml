@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tonavia-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tonavia
+      POSTGRES_PASSWORD: tonavia
+      POSTGRES_DB: tonavia
+    ports:
+      - "5432:5432"
+    volumes:
+      - tonavia_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tonavia -d tonavia"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    container_name: tonavia-web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://tonavia:tonavia@db:5432/tonavia?schema=public
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    command: sh -c "npx prisma db push && npx prisma db seed && node server.js"
+
+volumes:
+  tonavia_postgres:
