@@ -21,6 +21,7 @@ const productSchema = z.object({
 function revalidateApp() {
   revalidatePath("/");
   revalidatePath("/ordens");
+  revalidatePath("/vendas");
   revalidatePath("/estoque");
 }
 
@@ -66,6 +67,7 @@ export async function createStockMovement(formData: FormData) {
 export async function createServiceOrder(formData: FormData) {
   const customerName = String(formData.get("customerName") || "").trim() || null;
   const tableLabel = String(formData.get("tableLabel") || "").trim() || null;
+  const channel = z.enum(["LOCAL", "DELIVERY", "TAKEOUT"]).parse(formData.get("channel") || "LOCAL");
   const notes = String(formData.get("notes") || "").trim() || null;
   const discountCents = moneyToCents(formData.get("discount"));
   const surchargeCents = moneyToCents(formData.get("surcharge"));
@@ -111,6 +113,7 @@ export async function createServiceOrder(formData: FormData) {
     data: {
       customerName,
       tableLabel,
+      channel,
       notes,
       subtotalCents,
       discountCents,
@@ -125,7 +128,7 @@ export async function createServiceOrder(formData: FormData) {
   });
 
   revalidateApp();
-  redirect("/ordens");
+  redirect("/vendas");
 }
 
 export async function closeServiceOrder(formData: FormData) {
@@ -147,7 +150,7 @@ export async function closeServiceOrder(formData: FormData) {
           type: "SALE",
           quantity: item.quantity,
           serviceOrderId: order.id,
-          reason: `Baixa automatica da OS #${order.number}`,
+          reason: `Baixa automatica da venda #${order.number}`,
         },
       });
     }

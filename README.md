@@ -1,14 +1,15 @@
 # Tonavia Restaurante
 
-Sistema web para faturamento de ordens de servico de self-service e controle simples de estoque.
+Sistema web para faturamento de vendas de self-service e controle simples de estoque.
 
 ## Funcionalidades
 
-- Ordens de servico por peso, por item avulso ou mistas.
-- Fechamento e cancelamento de OS.
+- Venda de self-service por peso, item avulso ou cobranca mista.
+- Fechamento e cancelamento de vendas no caixa.
 - Baixa automatica de estoque para itens vendidos vinculados a produtos.
 - Cadastro de produtos, estoque minimo e movimentacoes de entrada, saida e ajuste.
-- Dashboard com faturamento do dia, ticket medio, OS recentes e alertas de estoque baixo.
+- Dashboard com filtro por intervalo, faturamento por dia, ticket medio, canais de venda e alertas de estoque baixo.
+- Classificacao de vendas por canal: no local, delivery e retirada.
 
 ## Rodando localmente
 

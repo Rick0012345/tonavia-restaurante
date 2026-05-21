@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { ClipboardList, Home, Package, UtensilsCrossed } from "lucide-react";
+import { Home, Package, ShoppingCart, UtensilsCrossed } from "lucide-react";
 import { ThemeToggle } from "@/app/ThemeToggle";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const nav = [
     { href: "/", label: "Painel", icon: Home },
-    { href: "/ordens", label: "Ordens", icon: ClipboardList },
+    { href: "/vendas", label: "Vendas", icon: ShoppingCart },
     { href: "/estoque", label: "Estoque", icon: Package },
   ];
 
@@ -74,6 +74,25 @@ export function Card({ children, className = "" }: { children: React.ReactNode; 
   return <section className={`card-surface rounded-lg border p-5 shadow-sm ${className}`}>{children}</section>;
 }
 
+export function SectionTabs({
+  tabs,
+  active,
+}: {
+  tabs: Array<{ href: string; label: string; description?: string }>;
+  active: string;
+}) {
+  return (
+    <nav className="section-tabs mb-6 grid gap-2 md:grid-cols-2 xl:grid-cols-4" aria-label="Navegacao da pagina">
+      {tabs.map((tab) => (
+        <Link key={tab.href} href={tab.href} className={`section-tab rounded-lg border p-4 ${active === tab.href ? "section-tab-active" : ""}`}>
+          <span className="block font-bold">{tab.label}</span>
+          {tab.description ? <span className="text-muted mt-1 block text-sm">{tab.description}</span> : null}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="text-soft grid gap-1.5 text-sm font-medium">
@@ -84,7 +103,7 @@ export function Field({ label, children }: { label: string; children: React.Reac
 }
 
 export const inputClass =
-  "form-control h-10 rounded-md border px-3 text-sm outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100";
+  "form-control h-10 w-full rounded-md border px-3 text-sm outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100";
 
 export function SubmitButton({ children }: { children: React.ReactNode }) {
   return (

@@ -1,12 +1,34 @@
-import { AppShell, Card, Field, PageTitle, SubmitButton, inputClass } from "@/app/components";
+import { AppShell, Card, Field, PageTitle, SectionTabs, SubmitButton, inputClass } from "@/app/components";
 import { createProduct, createStockMovement } from "@/lib/actions";
 import { formatCurrency, formatDecimal } from "@/lib/format";
 import { getStockData } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
-export default async function StockPage() {
+type StockTab = "produtos" | "novo" | "movimentar" | "historico";
+
+type StockPageProps = {
+  searchParams?: Promise<{
+    aba?: string;
+  }>;
+};
+
+function getActiveTab(value: string | undefined): StockTab {
+  if (value === "novo" || value === "movimentar" || value === "historico") return value;
+  return "produtos";
+}
+
+export default async function StockPage({ searchParams }: StockPageProps) {
+  const params = await searchParams;
+  const activeTab = getActiveTab(params?.aba);
   const { products, categories, movements } = await getStockData();
+  const lowStockCount = products.filter((product) => Number(product.quantity) <= Number(product.minQuantity)).length;
+  const tabs = [
+    { href: "/estoque?aba=produtos", key: "produtos", label: "Estoque atual", description: `${products.length} produtos, ${lowStockCount} em alerta` },
+    { href: "/estoque?aba=novo", key: "novo", label: "Adicionar produto", description: "Cadastre itens do caixa ou insumos" },
+    { href: "/estoque?aba=movimentar", key: "movimentar", label: "Movimentar", description: "Entradas, saidas e ajustes" },
+    { href: "/estoque?aba=historico", key: "historico", label: "Historico", description: "Ultimas movimentacoes" },
+  ];
 
   return (
     <AppShell>
@@ -14,10 +36,56 @@ export default async function StockPage() {
         Controle entradas, saidas, ajustes e veja rapidamente quais produtos precisam de reposicao.
       </PageTitle>
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.3fr]">
-        <div className="grid gap-6">
-          <Card>
-            <h3 className="mb-4 text-lg font-bold">Novo produto</h3>
+      <SectionTabs
+        active={`/estoque?aba=${activeTab}`}
+        tabs={tabs.map((tab) => ({ href: tab.href, label: tab.label, description: tab.description }))}
+      />
+
+      {activeTab === "produtos" ? (
+        <Card>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-bold">Estoque atual</h3>
+              <p className="text-muted text-sm">Lista de produtos, quantidade disponivel e preco de venda.</p>
+            </div>
+            {lowStockCount ? <span className="warning-panel rounded-md border px-3 py-2 text-sm font-bold">{lowStockCount} em alerta</span> : null}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="text-left text-sm">
+              <thead className="table-head border-b">
+                <tr>
+                  <th className="py-3">Produto</th>
+                  <th>Categoria</th>
+                  <th>Estoque</th>
+                  <th>Minimo</th>
+                  <th>Venda</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product) => {
+                  const low = Number(product.quantity) <= Number(product.minQuantity);
+                  return (
+                    <tr key={product.id} className="table-row border-b">
+                      <td className="py-3 font-semibold">{product.name}</td>
+                      <td>{product.category?.name || "-"}</td>
+                      <td className={low ? "text-warning font-bold" : ""}>{formatDecimal(product.quantity)} {product.unit}</td>
+                      <td>{formatDecimal(product.minQuantity)} {product.unit}</td>
+                      <td>{formatCurrency(product.salePriceCents)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ) : null}
+
+      {activeTab === "novo" ? (
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold">Adicionar produto</h3>
+            <p className="text-muted text-sm">Cadastre bebidas, marmitas, sobremesas ou insumos usados pelo restaurante.</p>
+          </div>
             <form action={createProduct} className="grid gap-3">
               <Field label="Nome">
                 <input name="name" required className={inputClass} placeholder="Ex: Suco natural" />
@@ -59,14 +127,19 @@ export default async function StockPage() {
               </div>
               <label className="text-soft flex items-center gap-2 text-sm font-medium">
                 <input name="isSellable" type="checkbox" defaultChecked className="size-4 accent-emerald-700" />
-                Pode ser vendido na OS
+                Pode ser vendido no caixa
               </label>
               <SubmitButton>Cadastrar produto</SubmitButton>
             </form>
-          </Card>
+        </Card>
+      ) : null}
 
-          <Card>
-            <h3 className="mb-4 text-lg font-bold">Movimentar estoque</h3>
+      {activeTab === "movimentar" ? (
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold">Movimentar estoque</h3>
+            <p className="text-muted text-sm">Use para compras, perdas, inventario e ajustes de quantidade.</p>
+          </div>
             <form action={createStockMovement} className="grid gap-3">
               <Field label="Produto">
                 <select name="productId" required className={inputClass}>
@@ -92,57 +165,28 @@ export default async function StockPage() {
               </Field>
               <SubmitButton>Registrar movimento</SubmitButton>
             </form>
-          </Card>
-        </div>
+        </Card>
+      ) : null}
 
-        <div className="grid gap-6">
-          <Card>
-            <h3 className="mb-4 text-lg font-bold">Produtos</h3>
-            <div className="overflow-x-auto">
-              <table className="text-left text-sm">
-                <thead className="table-head border-b">
-                  <tr>
-                    <th className="py-3">Produto</th>
-                    <th>Categoria</th>
-                    <th>Estoque</th>
-                    <th>Minimo</th>
-                    <th>Venda</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((product) => {
-                    const low = Number(product.quantity) <= Number(product.minQuantity);
-                    return (
-                      <tr key={product.id} className="table-row border-b">
-                        <td className="py-3 font-semibold">{product.name}</td>
-                        <td>{product.category?.name || "-"}</td>
-                        <td className={low ? "text-warning font-bold" : ""}>{formatDecimal(product.quantity)} {product.unit}</td>
-                        <td>{formatDecimal(product.minQuantity)} {product.unit}</td>
-                        <td>{formatCurrency(product.salePriceCents)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-
-          <Card>
-            <h3 className="mb-4 text-lg font-bold">Ultimas movimentacoes</h3>
-            <div className="space-y-3">
-              {movements.map((movement) => (
-                <div key={movement.id} className="card-surface flex items-center justify-between rounded-md border p-3 text-sm">
-                  <div>
-                    <p className="font-semibold">{movement.product.name}</p>
-                    <p className="text-muted">{movement.reason || "Sem observacao"}</p>
-                  </div>
-                  <span className="font-bold">{movement.type} {formatDecimal(movement.quantity)}</span>
+      {activeTab === "historico" ? (
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold">Historico de movimentacoes</h3>
+            <p className="text-muted text-sm">Ultimas entradas, saidas, ajustes e baixas por venda.</p>
+          </div>
+          <div className="space-y-3">
+            {movements.map((movement) => (
+              <div key={movement.id} className="card-surface flex items-center justify-between rounded-md border p-3 text-sm">
+                <div>
+                  <p className="font-semibold">{movement.product.name}</p>
+                  <p className="text-muted">{movement.reason || "Sem observacao"}</p>
                 </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      </div>
+                <span className="font-bold">{movement.type} {formatDecimal(movement.quantity)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
     </AppShell>
   );
 }
