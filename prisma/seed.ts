@@ -3,6 +3,12 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
+  await prisma.appSettings.upsert({
+    where: { id: "global" },
+    update: {},
+    create: { id: "global", mealPriceCents: 2000 },
+  });
+
   const buffet = await prisma.category.upsert({
     where: { name: "Buffet" },
     update: {},
@@ -23,11 +29,21 @@ async function main() {
     { name: "Refrigerante lata", unit: "UN", salePriceCents: 700, quantity: 48, minQuantity: 12, categoryId: bebidas.id },
     { name: "Agua mineral", unit: "UN", salePriceCents: 500, quantity: 36, minQuantity: 10, categoryId: bebidas.id },
     { name: "Marmita self-service", unit: "UN", salePriceCents: 2200, quantity: 20, minQuantity: 5, categoryId: buffet.id },
-    { name: "Arroz", unit: "KG", salePriceCents: 0, quantity: 25, minQuantity: 8, isSellable: false, categoryId: insumos.id },
+    {
+      name: "Arroz",
+      unit: "KG",
+      salePriceCents: 0,
+      quantity: 25,
+      minQuantity: 8,
+      isSellable: false,
+      categoryId: insumos.id,
+      purchaseByPackage: true,
+      packageWeightKg: 5,
+    },
   ] as const) {
     await prisma.product.upsert({
       where: { id: product.name.toLowerCase().replaceAll(" ", "-") },
-      update: {},
+      update: product,
       create: { id: product.name.toLowerCase().replaceAll(" ", "-"), ...product },
     });
   }

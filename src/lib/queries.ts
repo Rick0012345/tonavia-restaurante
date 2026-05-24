@@ -20,7 +20,7 @@ export async function getDashboardData(period: DashboardPeriod) {
       take: 8,
       where: { createdAt: { gte: period.start, lte: period.end } },
       orderBy: { createdAt: "desc" },
-      include: { items: true, weightLines: true },
+      include: { items: true, mealLines: true, weightLines: true },
     }),
   ]);
 
@@ -29,6 +29,11 @@ export async function getDashboardData(period: DashboardPeriod) {
     const date = (order.closedAt ?? order.createdAt).toISOString().slice(0, 10);
     days[date] = (days[date] ?? 0) + order.totalCents;
     return days;
+  }, {});
+  const revenueByMonth = revenueOrders.reduce<Record<string, number>>((months, order) => {
+    const month = (order.closedAt ?? order.createdAt).toISOString().slice(0, 7);
+    months[month] = (months[month] ?? 0) + order.totalCents;
+    return months;
   }, {});
   const channelLabels = {
     LOCAL: "No local",
@@ -58,6 +63,7 @@ export async function getDashboardData(period: DashboardPeriod) {
     totalOrders: orders.length,
     averageTicketCents: revenueOrders.length ? Math.round(revenueCents / revenueOrders.length) : 0,
     revenueByDay: Object.entries(revenueByDay).map(([date, totalCents]) => ({ date, totalCents })),
+    revenueByMonth: Object.entries(revenueByMonth).map(([month, totalCents]) => ({ month, totalCents })),
     channels: Object.entries(ordersByChannel).map(([channel, values]) => ({
       channel,
       label: channelLabels[channel as keyof typeof channelLabels],
@@ -69,18 +75,19 @@ export async function getDashboardData(period: DashboardPeriod) {
 }
 
 export async function getOrdersData() {
-  const [orders, products] = await Promise.all([
+  const [orders, products, settings] = await Promise.all([
     prisma.serviceOrder.findMany({
       orderBy: { createdAt: "desc" },
-      include: { items: { include: { product: true } }, weightLines: true },
+      include: { items: { include: { product: true } }, mealLines: true, weightLines: true },
     }),
     prisma.product.findMany({
       where: { isSellable: true },
       orderBy: { name: "asc" },
     }),
+    getAppSettings(),
   ]);
 
-  return { orders, products };
+  return { orders, products, settings };
 }
 
 export async function getStockData() {
@@ -95,4 +102,12 @@ export async function getStockData() {
   ]);
 
   return { products, categories, movements };
+}
+
+export async function getAppSettings() {
+  return prisma.appSettings.upsert({
+    where: { id: "global" },
+    update: {},
+    create: { id: "global", mealPriceCents: 2000 },
+  });
 }

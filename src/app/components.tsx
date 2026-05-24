@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, Package, ShoppingCart, UtensilsCrossed } from "lucide-react";
+import { Home, Package, Settings, ShoppingCart, UtensilsCrossed } from "lucide-react";
 import { ThemeToggle } from "@/app/ThemeToggle";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -7,6 +7,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/", label: "Painel", icon: Home },
     { href: "/vendas", label: "Vendas", icon: ShoppingCart },
     { href: "/estoque", label: "Estoque", icon: Package },
+    { href: "/configuracoes", label: "Config.", icon: Settings },
   ];
 
   return (

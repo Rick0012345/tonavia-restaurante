@@ -45,6 +45,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const period = getPeriod(params);
   const data = await getDashboardData(period);
   const maxRevenue = Math.max(...data.revenueByDay.map((day) => day.totalCents), 1);
+  const maxMonthlyRevenue = Math.max(...data.revenueByMonth.map((month) => month.totalCents), 1);
   const maxChannelCount = Math.max(...data.channels.map((channel) => channel.count), 1);
   const totalChannelCount = data.channels.reduce((sum, channel) => sum + channel.count, 0);
   const periodLabel = `${new Intl.DateTimeFormat("pt-BR").format(period.start)} ate ${new Intl.DateTimeFormat("pt-BR").format(period.end)}`;
@@ -54,6 +55,8 @@ export default async function Home({ searchParams }: HomeProps) {
     { label: "7 dias", from: addDays(today, -6), to: today },
     { label: "30 dias", from: addDays(today, -29), to: today },
     { label: "Este mes", from: new Date(today.getFullYear(), today.getMonth(), 1), to: today },
+    { label: "Ano atual", from: new Date(today.getFullYear(), 0, 1), to: today },
+    { label: "12 meses", from: addDays(today, -364), to: today },
   ];
   const metrics = [
     { label: "Faturado no periodo", value: formatCurrency(data.revenueCents), icon: Banknote },
@@ -187,6 +190,38 @@ export default async function Home({ searchParams }: HomeProps) {
               </div>
             ))}
           </div>
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-bold">Faturamento mensal</h3>
+              <p className="text-muted text-sm">Resumo por mes dentro do periodo selecionado.</p>
+            </div>
+            <strong className="text-accent text-2xl font-bold tabular-nums">{formatCurrency(data.revenueCents)}</strong>
+          </div>
+          {data.revenueByMonth.length ? (
+            <div className="grid gap-3">
+              {data.revenueByMonth.map((month) => (
+                <div key={month.month} className="grid gap-2 sm:grid-cols-[96px_1fr_120px] sm:items-center">
+                  <span className="text-muted text-sm font-semibold tabular-nums">
+                    {new Intl.DateTimeFormat("pt-BR", { month: "2-digit", year: "numeric" }).format(new Date(`${month.month}-01T00:00:00`))}
+                  </span>
+                  <div className="revenue-track h-3 overflow-hidden rounded-full">
+                    <div className="revenue-bar h-full rounded-full" style={{ width: `${Math.max(8, (month.totalCents / maxMonthlyRevenue) * 100)}%` }} />
+                  </div>
+                  <strong className="text-sm tabular-nums sm:text-right">{formatCurrency(month.totalCents)}</strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state rounded-lg border p-4">
+              <p className="font-semibold">Nenhum faturamento mensal no periodo.</p>
+              <p className="text-muted mt-1 text-sm">Finalize vendas ou escolha outro intervalo.</p>
+            </div>
+          )}
         </Card>
       </div>
 

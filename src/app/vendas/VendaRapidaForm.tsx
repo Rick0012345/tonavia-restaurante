@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, Bike, Calculator, Minus, Plus, Scale, ShoppingBasket, Store, Ticket } from "lucide-react";
+import { Banknote, Bike, Calculator, Minus, Plus, ShoppingBasket, Store, Ticket, UtensilsCrossed } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Field, SubmitButton, inputClass } from "@/app/components";
 import { formatCurrency } from "@/lib/format";
@@ -13,6 +13,7 @@ type ProductOption = {
 
 type VendaRapidaFormProps = {
   products: ProductOption[];
+  mealPriceCents: number;
   action: (formData: FormData) => Promise<void>;
 };
 
@@ -27,9 +28,8 @@ function decimalValue(value: string) {
   return Number.isFinite(number) ? number : 0;
 }
 
-export function VendaRapidaForm({ products, action }: VendaRapidaFormProps) {
-  const [weightKg, setWeightKg] = useState("");
-  const [pricePerKg, setPricePerKg] = useState("");
+export function VendaRapidaForm({ products, mealPriceCents, action }: VendaRapidaFormProps) {
+  const [mealQuantity, setMealQuantity] = useState("1");
   const [productId, setProductId] = useState("");
   const [productQuantity, setProductQuantity] = useState("1");
   const [manualQuantity, setManualQuantity] = useState("1");
@@ -39,11 +39,11 @@ export function VendaRapidaForm({ products, action }: VendaRapidaFormProps) {
 
   const selectedProduct = products.find((product) => product.id === productId);
   const estimate = useMemo(() => {
-    const buffetTotal = decimalValue(weightKg) * moneyToCents(pricePerKg);
+    const mealTotal = decimalValue(mealQuantity) * mealPriceCents;
     const productTotal = selectedProduct ? decimalValue(productQuantity) * selectedProduct.salePriceCents : 0;
     const manualTotal = decimalValue(manualQuantity) * moneyToCents(manualUnitPrice);
-    return Math.max(0, Math.round(buffetTotal + productTotal + manualTotal - moneyToCents(discount) + moneyToCents(surcharge)));
-  }, [discount, manualQuantity, manualUnitPrice, pricePerKg, productQuantity, selectedProduct, surcharge, weightKg]);
+    return Math.max(0, Math.round(mealTotal + productTotal + manualTotal - moneyToCents(discount) + moneyToCents(surcharge)));
+  }, [discount, manualQuantity, manualUnitPrice, mealPriceCents, mealQuantity, productQuantity, selectedProduct, surcharge]);
 
   return (
     <form action={action} className="grid gap-4">
@@ -100,41 +100,22 @@ export function VendaRapidaForm({ products, action }: VendaRapidaFormProps) {
       <section className="sale-step rounded-lg border p-4">
         <div className="mb-4 flex items-center gap-3">
           <div className="step-icon flex size-10 items-center justify-center rounded-md">
-            <Scale size={20} />
+            <UtensilsCrossed size={20} />
           </div>
           <div>
-            <h3 className="font-bold">Prato self-service</h3>
-            <p className="text-muted text-sm">Informe o peso da balanca e o valor do buffet por kg.</p>
+            <h3 className="font-bold">Refeicao de preco unico</h3>
+            <p className="text-muted text-sm">Cada refeicao usa o valor configurado de {formatCurrency(mealPriceCents)}.</p>
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Peso do prato">
-            <div className="input-with-suffix">
-              <input
-                name="weightKg"
-                className={`${inputClass} pr-12 text-lg font-bold tabular-nums`}
-                inputMode="decimal"
-                placeholder="0,450"
-                value={weightKg}
-                onChange={(event) => setWeightKg(event.target.value)}
-              />
-              <span>kg</span>
-            </div>
-          </Field>
-          <Field label="Preco do buffet">
-            <div className="input-with-suffix">
-              <input
-                name="pricePerKg"
-                className={`${inputClass} pr-16 text-lg font-bold tabular-nums`}
-                inputMode="decimal"
-                placeholder="69,90"
-                value={pricePerKg}
-                onChange={(event) => setPricePerKg(event.target.value)}
-              />
-              <span>/ kg</span>
-            </div>
-          </Field>
-        </div>
+        <Field label="Quantidade de refeicoes">
+          <input
+            name="mealQuantity"
+            className={`${inputClass} text-lg font-bold tabular-nums`}
+            inputMode="decimal"
+            value={mealQuantity}
+            onChange={(event) => setMealQuantity(event.target.value)}
+          />
+        </Field>
       </section>
 
       <section className="sale-step rounded-lg border p-4">
@@ -204,6 +185,10 @@ export function VendaRapidaForm({ products, action }: VendaRapidaFormProps) {
             />
           </Field>
         </div>
+        <label className="text-soft mt-3 flex items-center gap-2 text-sm font-medium">
+          <input name="addManualToMenu" type="checkbox" className="size-4 accent-emerald-700" />
+          Adicionar este extra ao cardapio
+        </label>
       </section>
 
       <section className="muted-panel rounded-lg border p-4">

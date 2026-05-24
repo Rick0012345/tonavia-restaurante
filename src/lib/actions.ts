@@ -16,6 +16,8 @@ const productSchema = z.object({
   minQuantity: z.string(),
   costCents: z.number().int().min(0).optional(),
   isSellable: z.boolean(),
+  purchaseByPackage: z.boolean(),
+  packageWeightKg: z.string().nullable(),
 });
 
 function revalidateApp() {
@@ -23,6 +25,15 @@ function revalidateApp() {
   revalidatePath("/ordens");
   revalidatePath("/vendas");
   revalidatePath("/estoque");
+  revalidatePath("/configuracoes");
+}
+
+async function getSettings() {
+  return prisma.appSettings.upsert({
+    where: { id: "global" },
+    update: {},
+    create: { id: "global", mealPriceCents: 2000 },
+  });
 }
 
 export async function createProduct(formData: FormData) {
@@ -35,20 +46,48 @@ export async function createProduct(formData: FormData) {
     minQuantity: decimalFromForm(formData.get("minQuantity")),
     costCents: formData.get("cost") ? moneyToCents(formData.get("cost")) : undefined,
     isSellable: formData.get("isSellable") === "on",
+    purchaseByPackage: formData.get("purchaseByPackage") === "on",
+    packageWeightKg: formData.get("packageWeightKg") ? decimalFromForm(formData.get("packageWeightKg")) : null,
   });
 
   await prisma.product.create({ data: parsed });
   revalidateApp();
 }
 
+export async function updateProductPackageSettings(formData: FormData) {
+  const productId = String(formData.get("productId") || "");
+  const purchaseByPackage = formData.get("purchaseByPackage") === "on";
+  const packageWeightKg = formData.get("packageWeightKg") ? decimalFromForm(formData.get("packageWeightKg")) : null;
+
+  await prisma.product.update({
+    where: { id: productId },
+    data: {
+      purchaseByPackage,
+      packageWeightKg: purchaseByPackage ? packageWeightKg : null,
+    },
+  });
+
+  revalidateApp();
+}
+
 export async function createStockMovement(formData: FormData) {
   const productId = String(formData.get("productId") || "");
   const type = z.enum(["IN", "OUT", "ADJUST"]).parse(formData.get("type"));
-  const quantity = new Prisma.Decimal(decimalFromForm(formData.get("quantity")));
+  const inputMode = z.enum(["UNIT", "PACKAGE"]).parse(formData.get("inputMode") || "UNIT");
+  const inputQuantity = new Prisma.Decimal(decimalFromForm(formData.get("quantity")));
   const reason = String(formData.get("reason") || "");
+  const product = await prisma.product.findUnique({ where: { id: productId } });
+
+  if (!product) return;
+
+  const packageWeightKg = product.packageWeightKg ? new Prisma.Decimal(product.packageWeightKg) : null;
+  const quantity =
+    inputMode === "PACKAGE" && packageWeightKg?.gt(0)
+      ? inputQuantity.mul(packageWeightKg)
+      : inputQuantity;
 
   await prisma.$transaction(async (tx) => {
-    await tx.stockMovement.create({ data: { productId, type, quantity, reason } });
+    await tx.stockMovement.create({ data: { productId, type, quantity, inputQuantity, inputMode, reason } });
 
     if (type === "ADJUST") {
       await tx.product.update({ where: { id: productId }, data: { quantity } });
@@ -72,15 +111,15 @@ export async function createServiceOrder(formData: FormData) {
   const discountCents = moneyToCents(formData.get("discount"));
   const surchargeCents = moneyToCents(formData.get("surcharge"));
 
-  const weightKg = new Prisma.Decimal(decimalFromForm(formData.get("weightKg")));
-  const pricePerKgCents = moneyToCents(formData.get("pricePerKg"));
-  const weightTotalCents = Math.round(weightKg.toNumber() * pricePerKgCents);
-
   const productId = String(formData.get("productId") || "");
   const productQuantity = new Prisma.Decimal(decimalFromForm(formData.get("productQuantity")));
   const manualDescription = String(formData.get("manualDescription") || "").trim();
   const manualQuantity = new Prisma.Decimal(decimalFromForm(formData.get("manualQuantity")));
   const manualUnitPriceCents = moneyToCents(formData.get("manualUnitPrice"));
+  const mealQuantity = new Prisma.Decimal(decimalFromForm(formData.get("mealQuantity")));
+  const addManualToMenu = formData.get("addManualToMenu") === "on";
+  const settings = await getSettings();
+  const mealTotalCents = Math.round(mealQuantity.toNumber() * settings.mealPriceCents);
 
   const product = productId ? await prisma.product.findUnique({ where: { id: productId } }) : null;
   const itemLines: Prisma.ServiceOrderItemCreateWithoutServiceOrderInput[] = [];
@@ -104,27 +143,44 @@ export async function createServiceOrder(formData: FormData) {
     });
   }
 
+  const manualProductData =
+    addManualToMenu && manualDescription && manualUnitPriceCents > 0
+      ? {
+          name: manualDescription,
+          unit: "UN" as const,
+          salePriceCents: manualUnitPriceCents,
+          quantity: new Prisma.Decimal(0),
+          minQuantity: new Prisma.Decimal(0),
+          isSellable: true,
+        }
+      : null;
+
   const subtotalCents =
-    (weightKg.gt(0) && pricePerKgCents > 0 ? weightTotalCents : 0) +
+    (mealQuantity.gt(0) ? mealTotalCents : 0) +
     itemLines.reduce((sum, item) => sum + Number(item.totalCents), 0);
   const totalCents = Math.max(0, subtotalCents - discountCents + surchargeCents);
 
-  await prisma.serviceOrder.create({
-    data: {
-      customerName,
-      tableLabel,
-      channel,
-      notes,
-      subtotalCents,
-      discountCents,
-      surchargeCents,
-      totalCents,
-      weightLines:
-        weightKg.gt(0) && pricePerKgCents > 0
-          ? { create: { weightKg, pricePerKgCents, totalCents: weightTotalCents } }
+  await prisma.$transaction(async (tx) => {
+    if (manualProductData) {
+      await tx.product.create({ data: manualProductData });
+    }
+
+    await tx.serviceOrder.create({
+      data: {
+        customerName,
+        tableLabel,
+        channel,
+        notes,
+        subtotalCents,
+        discountCents,
+        surchargeCents,
+        totalCents,
+        mealLines: mealQuantity.gt(0)
+          ? { create: { quantity: mealQuantity, unitPriceCents: settings.mealPriceCents, totalCents: mealTotalCents } }
           : undefined,
-      items: itemLines.length ? { create: itemLines } : undefined,
-    },
+        items: itemLines.length ? { create: itemLines } : undefined,
+      },
+    });
   });
 
   revalidateApp();
@@ -169,5 +225,15 @@ export async function cancelServiceOrder(formData: FormData) {
     where: { id: String(formData.get("id") || "") },
     data: { status: "CANCELED" },
   });
+  revalidateApp();
+}
+
+export async function updateAppSettings(formData: FormData) {
+  await prisma.appSettings.upsert({
+    where: { id: "global" },
+    update: { mealPriceCents: moneyToCents(formData.get("mealPrice")) },
+    create: { id: "global", mealPriceCents: moneyToCents(formData.get("mealPrice")) || 2000 },
+  });
+
   revalidateApp();
 }

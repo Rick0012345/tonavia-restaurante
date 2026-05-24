@@ -1,4 +1,4 @@
-import { Check, Clock, X } from "lucide-react";
+import { Bike, Check, Clock, ShoppingBasket, Store, X } from "lucide-react";
 import { AppShell, Card, PageTitle, SectionTabs } from "@/app/components";
 import { VendaRapidaForm } from "@/app/vendas/VendaRapidaForm";
 import { cancelServiceOrder, closeServiceOrder, createServiceOrder } from "@/lib/actions";
@@ -20,14 +20,25 @@ function getActiveTab(value: string | undefined): SalesTab {
   return "nova";
 }
 
+const channelInfo = {
+  LOCAL: { label: "Comum", icon: Store },
+  DELIVERY: { label: "Entrega", icon: Bike },
+  TAKEOUT: { label: "Retirada", icon: ShoppingBasket },
+};
+
 export default async function SalesPage({ searchParams }: SalesPageProps) {
   const params = await searchParams;
   const activeTab = getActiveTab(params?.aba);
-  const { orders, products } = await getOrdersData();
+  const { orders, products, settings } = await getOrdersData();
   const openOrders = orders.filter((order) => order.status === "OPEN");
   const finishedToday = orders.filter((order) => order.status === "CLOSED").slice(0, 6);
+  const channelCounts = {
+    LOCAL: orders.filter((order) => order.channel === "LOCAL").length,
+    DELIVERY: orders.filter((order) => order.channel === "DELIVERY").length,
+    TAKEOUT: orders.filter((order) => order.channel === "TAKEOUT").length,
+  };
   const tabs = [
-    { href: "/vendas?aba=nova", label: "Nova venda", description: "Pesar, conferir e salvar" },
+    { href: "/vendas?aba=nova", label: "Nova venda", description: "Refeicao, item pronto e extra" },
     { href: "/vendas?aba=abertas", label: "Em aberto", description: `${openOrders.length} aguardando pagamento` },
     { href: "/vendas?aba=historico", label: "Historico", description: "Ultimas vendas registradas" },
   ];
@@ -35,10 +46,10 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   return (
     <AppShell>
       <PageTitle eyebrow="Caixa" title="Venda de self-service">
-        Registre o prato por peso, adicione bebidas ou extras e veja o total antes de salvar.
+        Registre refeicoes de preco unico, adicione bebidas ou extras e veja o total antes de salvar.
       </PageTitle>
 
-      <div className="mb-6 grid gap-3 md:grid-cols-3">
+      <div className="mb-6 grid gap-3 md:grid-cols-3 xl:grid-cols-4">
         <Card className="py-4">
           <p className="text-muted text-sm font-medium">Vendas em aberto</p>
           <strong className="mt-2 block text-2xl font-bold tabular-nums">{openOrders.length}</strong>
@@ -48,8 +59,14 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           <strong className="mt-2 block text-2xl font-bold tabular-nums">{finishedToday.length}</strong>
         </Card>
         <Card className="py-4">
-          <p className="text-muted text-sm font-medium">Atalho do fluxo</p>
-          <strong className="mt-2 block text-lg font-bold">Pesar, conferir, salvar</strong>
+          <p className="text-muted text-sm font-medium">Refeicao atual</p>
+          <strong className="mt-2 block text-lg font-bold">{formatCurrency(settings.mealPriceCents)}</strong>
+        </Card>
+        <Card className="py-4">
+          <p className="text-muted text-sm font-medium">Canais registrados</p>
+          <strong className="mt-2 block text-sm font-bold">
+            Comum {channelCounts.LOCAL} | Entrega {channelCounts.DELIVERY} | Retirada {channelCounts.TAKEOUT}
+          </strong>
         </Card>
       </div>
 
@@ -61,7 +78,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             <h2 className="text-xl font-bold">Nova venda</h2>
             <p className="text-muted mt-1 text-sm">Feito para o ritmo do caixa: poucos campos, total visivel e nomes do restaurante.</p>
           </div>
-          <VendaRapidaForm products={products} action={createServiceOrder} />
+          <VendaRapidaForm products={products} mealPriceCents={settings.mealPriceCents} action={createServiceOrder} />
         </Card>
       ) : null}
 
@@ -80,7 +97,20 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                   <article key={order.id} className="sale-card rounded-lg border p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-lg font-bold">Venda #{order.number}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-bold">Venda #{order.number}</h3>
+                          <span className="status-chip inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold">
+                            {(() => {
+                              const info = channelInfo[order.channel];
+                              const Icon = info.icon;
+                              return (
+                                <>
+                                  <Icon size={14} /> {info.label}
+                                </>
+                              );
+                            })()}
+                          </span>
+                        </div>
                         <p className="text-muted text-sm">{order.customerName || order.tableLabel || "Balcao"}</p>
                       </div>
                       <div className="text-right">
@@ -89,9 +119,14 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       </div>
                     </div>
                     <div className="text-soft mt-3 grid gap-2 text-sm">
+                      {order.mealLines.map((line) => (
+                        <p key={line.id}>
+                          Refeicao: {formatDecimal(line.quantity)} x {formatCurrency(line.unitPriceCents)}
+                        </p>
+                      ))}
                       {order.weightLines.map((line) => (
                         <p key={line.id}>
-                          Prato: {formatDecimal(line.weightKg)} kg x {formatCurrency(line.pricePerKgCents)}
+                          Prato antigo: {formatDecimal(line.weightKg)} kg x {formatCurrency(line.pricePerKgCents)}
                         </p>
                       ))}
                       {order.items.map((item) => (
@@ -135,6 +170,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                   <tr>
                     <th className="py-3">Venda</th>
                     <th>Cliente/mesa</th>
+                    <th>Canal</th>
                     <th>Status</th>
                     <th>Total</th>
                   </tr>
@@ -144,6 +180,11 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                     <tr key={order.id} className="table-row border-b">
                       <td className="py-3 font-semibold">#{order.number}</td>
                       <td>{order.customerName || order.tableLabel || "Balcao"}</td>
+                      <td>
+                        <span className="status-chip inline-flex rounded-md px-2 py-1 text-xs font-semibold">
+                          {channelInfo[order.channel].label}
+                        </span>
+                      </td>
                       <td>{order.status === "OPEN" ? "Aberta" : order.status === "CLOSED" ? "Finalizada" : "Cancelada"}</td>
                       <td className="font-semibold tabular-nums">{formatCurrency(order.totalCents)}</td>
                     </tr>

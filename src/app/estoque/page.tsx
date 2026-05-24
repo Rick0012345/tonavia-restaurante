@@ -1,5 +1,5 @@
 import { AppShell, Card, Field, PageTitle, SectionTabs, SubmitButton, inputClass } from "@/app/components";
-import { createProduct, createStockMovement } from "@/lib/actions";
+import { createProduct, createStockMovement, updateProductPackageSettings } from "@/lib/actions";
 import { formatCurrency, formatDecimal } from "@/lib/format";
 import { getStockData } from "@/lib/queries";
 
@@ -58,6 +58,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                   <th>Categoria</th>
                   <th>Estoque</th>
                   <th>Minimo</th>
+                  <th>Compra</th>
                   <th>Venda</th>
                 </tr>
               </thead>
@@ -70,6 +71,32 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                       <td>{product.category?.name || "-"}</td>
                       <td className={low ? "text-warning font-bold" : ""}>{formatDecimal(product.quantity)} {product.unit}</td>
                       <td>{formatDecimal(product.minQuantity)} {product.unit}</td>
+                      <td>
+                        <form action={updateProductPackageSettings} className="grid min-w-56 gap-2 py-2">
+                          <input type="hidden" name="productId" value={product.id} />
+                          <label className="text-soft flex items-center gap-2 text-xs font-semibold">
+                            <input
+                              name="purchaseByPackage"
+                              type="checkbox"
+                              defaultChecked={product.purchaseByPackage}
+                              className="size-4 accent-emerald-700"
+                            />
+                            Compra por pacote
+                          </label>
+                          <div className="grid grid-cols-[1fr_auto] gap-2">
+                            <input
+                              name="packageWeightKg"
+                              className={`${inputClass} h-9 tabular-nums`}
+                              inputMode="decimal"
+                              placeholder="kg/pct"
+                              defaultValue={product.packageWeightKg ? formatDecimal(product.packageWeightKg) : ""}
+                            />
+                            <button className="inline-flex h-9 items-center justify-center rounded-md bg-emerald-700 px-3 text-xs font-semibold text-white hover:bg-emerald-800">
+                              Salvar
+                            </button>
+                          </div>
+                        </form>
+                      </td>
                       <td>{formatCurrency(product.salePriceCents)}</td>
                     </tr>
                   );
@@ -125,6 +152,15 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                   <input name="minQuantity" className={inputClass} inputMode="decimal" placeholder="0" />
                 </Field>
               </div>
+              <div className="muted-panel grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_180px]">
+                <label className="text-soft flex items-center gap-2 text-sm font-medium">
+                  <input name="purchaseByPackage" type="checkbox" className="size-4 accent-emerald-700" />
+                  Gerente compra este produto por pacote
+                </label>
+                <Field label="Kg por pacote">
+                  <input name="packageWeightKg" className={inputClass} inputMode="decimal" placeholder="Ex: 2" />
+                </Field>
+              </div>
               <label className="text-soft flex items-center gap-2 text-sm font-medium">
                 <input name="isSellable" type="checkbox" defaultChecked className="size-4 accent-emerald-700" />
                 Pode ser vendido no caixa
@@ -144,16 +180,27 @@ export default async function StockPage({ searchParams }: StockPageProps) {
               <Field label="Produto">
                 <select name="productId" required className={inputClass}>
                   {products.map((product) => (
-                    <option key={product.id} value={product.id}>{product.name}</option>
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                      {product.purchaseByPackage && product.packageWeightKg
+                        ? ` - pacote ${formatDecimal(product.packageWeightKg)} kg`
+                        : ""}
+                    </option>
                   ))}
                 </select>
               </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <Field label="Tipo">
                   <select name="type" className={inputClass} defaultValue="IN">
                     <option value="IN">Entrada</option>
                     <option value="OUT">Saida</option>
                     <option value="ADJUST">Ajuste</option>
+                  </select>
+                </Field>
+                <Field label="Como informar">
+                  <select name="inputMode" className={inputClass} defaultValue="UNIT">
+                    <option value="UNIT">Unidade base</option>
+                    <option value="PACKAGE">Pacotes</option>
                   </select>
                 </Field>
                 <Field label="Quantidade">
@@ -182,6 +229,11 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                   <p className="text-muted">{movement.reason || "Sem observacao"}</p>
                 </div>
                 <span className="font-bold">{movement.type} {formatDecimal(movement.quantity)}</span>
+                {movement.inputMode === "PACKAGE" && movement.inputQuantity ? (
+                  <span className="text-muted text-xs">
+                    informado: {formatDecimal(movement.inputQuantity)} pct, convertido para {formatDecimal(movement.quantity)} {movement.product.unit}
+                  </span>
+                ) : null}
               </div>
             ))}
           </div>
